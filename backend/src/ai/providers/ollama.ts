@@ -4,6 +4,46 @@ import { SYSTEM_ANALYSIS_PROMPT, REPAIR_JDL_PROMPT } from '../prompt.js';
 import { extractAndValidateJson, cleanJdlOutput } from './base.js';
 import { AIProvider, AIProviderResponse } from '../types.js';
 
+const OLLAMA_ANALYSIS_JSON_SCHEMA = {
+  type: 'object',
+  required: ['systemName', 'entities', 'relationships', 'observations'],
+  properties: {
+    systemName: { type: 'string' },
+    entities: {
+      type: 'array',
+      items: {
+        type: 'object',
+        required: ['name', 'fields'],
+        properties: {
+          name: { type: 'string' },
+          tableName: { type: 'string' },
+          fields: {
+            type: 'array',
+            items: {
+              type: 'object',
+              required: ['name', 'type', 'required'],
+              properties: {
+                name: { type: 'string' },
+                type: { type: 'string' },
+                required: { type: 'boolean' },
+                unique: { type: 'boolean' },
+                min: { type: 'number' },
+                max: { type: 'number' },
+                pattern: { type: 'string' },
+                description: { type: 'string' },
+              },
+            },
+          },
+          description: { type: 'string' },
+        },
+      },
+    },
+    enums: { type: 'array' },
+    relationships: { type: 'array' },
+    observations: { type: 'array' },
+  },
+} as const;
+
 export class OllamaProvider implements AIProvider {
   public readonly name = 'ollama';
   public readonly model = envConfig.ollama.model;
@@ -73,8 +113,9 @@ export class OllamaProvider implements AIProvider {
         model: activeModel,
         system: SYSTEM_ANALYSIS_PROMPT,
         prompt: `Requisitos del sistema a modelar:\n"""\n${userPrompt}\n"""`,
-        format: 'json',
+        format: OLLAMA_ANALYSIS_JSON_SCHEMA,
         stream: false,
+        think: false,
         options: {
           temperature: 0.2,
         },
